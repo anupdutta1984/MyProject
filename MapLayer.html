@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Simple Map</title>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+<meta charset="utf-8">
+<style>
+html,body {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+}
+
+.maplayout {
+	width: 50%;
+	height: 100%;
+	float: left;
+	display: block;
+}
+
+.category {
+	width: 100%;
+	border: 1px solid black;
+	float: left;
+	display: block;
+}
+
+#target {
+	width: 345px;
+}
+</style>
+<script
+	src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=true&libraries=places"></script>
+<script
+	src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+
+<script>
+	var map;
+	var infowindow;
+	var placeOpt = null;
+	var markerArray = new Array();
+	var clickMarker;
+
+	function initialize() {
+		var mapOptions = {
+			zoom : 8,
+			center : new google.maps.LatLng(-34.397, 150.644),
+			mapTypeId : google.maps.MapTypeId.ROADMAP
+		};
+		map = new google.maps.Map(document.getElementById('map-canvas'),
+				mapOptions);
+
+		var input = (document.getElementById('target'));
+		var searchBox = new google.maps.places.SearchBox(input);
+		var markers = [];
+
+		/* Start of Search Code*/
+		google.maps.event.addListener(searchBox, 'places_changed', function() {
+			var places = searchBox.getPlaces();
+
+			for ( var i = 0, marker; marker = markers[i]; i++) {
+				marker.setMap(null);
+			}
+
+			markers = [];
+			var bounds = new google.maps.LatLngBounds();
+			for ( var i = 0, place; place = places[i]; i++) {
+				var image = {
+					url : place.icon,
+					size : new google.maps.Size(71, 71),
+					origin : new google.maps.Point(0, 0),
+					anchor : new google.maps.Point(17, 34),
+					scaledSize : new google.maps.Size(25, 25)
+				};
+
+				var marker = new google.maps.Marker({
+					map : map,
+					icon : image,
+					title : place.name,
+					position : place.geometry.location
+				});
+
+				markers.push(marker);
+
+				bounds.extend(place.geometry.location);
+			}
+
+			map.fitBounds(bounds);
+		});
+
+		google.maps.event.addListener(map, 'bounds_changed', function() {
+			var bounds = map.getBounds();
+			searchBox.setBounds(bounds);
+		});
+
+		/*End of search code*/
+
+		/*Start Click Marker */
+		clickMarker = new google.maps.Marker({
+			map : map,
+		});
+
+		google.maps.event.addListener(map, 'click', function(event) {
+			clickMarker.setPosition(event.latLng);
+			$("#currentLatLng").val(new Number(event.latLng.lat()).toPrecision(7)
+					 + "," + new Number(event.latLng.lng()).toPrecision(7));
+		});
+		/*End Click Marker*/
+	}
+
+	function clearMarker() {
+		try {
+			for ( var i = 0; i < markerArray.length; i++) {
+				var m = markerArray[i];
+				m.setMap(null);
+			}
+			markerArray = new Array();
+
+		} catch (err) {
+			console.log(err);
+		}
+	}
+	$(document).ready(function() {
+		initialize();
+	});
+
+	function getAllCheckBoxValue() {
+		clearMarker();
+		placeOpt = new Array();
+		$("input[type='checkbox']").each(function(index) {
+			if (this.checked) {
+				placeOpt.push(this.value);
+			}
+		});
+
+		var request = {
+			location : map.getCenter(),
+			radius : $("#searchRadius").val(),
+			types : placeOpt
+		};
+
+		infowindow = new google.maps.InfoWindow();
+		var service = new google.maps.places.PlacesService(map);
+		service.nearbySearch(request, callback);
+	}
+
+	function callback(results, status) {
+		if (status == google.maps.places.PlacesServiceStatus.OK) {
+			var bounds = new google.maps.LatLngBounds();
+			for ( var i = 0; i < results.length; i++) {
+				createMarker(results[i]);
+				bounds.extend(results[i].geometry.location);
+			}
+			map.fitBounds(bounds);
+		}
+	}
+
+	function createMarker(place) {
+		var placeLoc = place.geometry.location;
+		var marker = new google.maps.Marker({
+			map : map,
+			position : place.geometry.location
+		});
+		markerArray.push(marker);
+		google.maps.event.addListener(marker, 'click', function() {
+			infowindow.setContent(place.name + " | " + place.types[0] + " | "
+					+ place.geometry.location.lat() + ","
+					+ place.geometry.location.lng());
+			infowindow.open(map, this);
+		});
+	}
+</script>
+</head>
+<body>
+	<div id="map-canvas" class="maplayout"></div>
+	<div class="maplayout">
+		<div class="category">
+			<div class="categoryRow">
+				<input type="checkbox" value="Category" id="chk1" /> <label
+					for="chk1">Category</label>
+			</div>
+			<div class="categoryRow">
+				<input type="checkbox" value="airport" id="chk2" /> <label
+					for="chk2">airport</label>
+			</div>
+			<div class="categoryRow">
+				<input type="checkbox" value="amusement_park" id="chk3" /> <label
+					for="chk3">amusement_park</label>
+			</div>
+			<div class="categoryRow">
+				Radius (mts): <input type="text" value="" id="searchRadius" />
+			</div>
+			<!-- Lat Lng -->
+			<div class="categoryRow">
+				Marker Lat Long <input type="text" value="" id="currentLatLng" />
+			</div>
+		</div>
+
+		<div class="actionOption">
+			<button onclick="getAllCheckBoxValue()">Show POIs</button>
+			<!-- Start Search Panel -->
+			<div id="panel">
+				<input id="target" type="text" placeholder="Search Box">
+			</div>
+			<!-- End Search Panel -->
+		</div>
+	</div>
+</body>
+</html>
